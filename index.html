@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chants of Sennaar風ゲーム</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        canvas { border: 1px solid black; }
+        #input-container { margin-top: 20px; }
+        .character-dialogue { font-size: 14px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="文字をコンマで区切って入力してください">
+        <button id="submit-button">送信</button>
+    </div>
+    <div id="dialogues" class="character-dialogue"></div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let currentRoom = 1;
+        const maxRooms = 5;
+        let rooms = [];
+        let contours = {};
+
+        // 輪郭を描画する関数
+        function drawContour(x, y, char, font) {
+            const contour = contours[font][char];
+            if (contour) {
+                ctx.beginPath();
+                ctx.moveTo(x + contour[0][0], y + contour[0][1]);
+                contour.forEach(([cx, cy], index) => {
+                    if (index === 0) return;
+                    ctx.lineTo(x + cx, y + cy);
+                });
+                ctx.closePath();
+                ctx.stroke();
+            }
+        }
+
+        // ダイアログのカスタムグラフィックスの適用
+        function drawDialogue(text, x, y, font) {
+            ctx.clearRect(x, y, canvas.width, 50); // 以前のダイアログをクリア
+            text.split('').forEach((char, index) => {
+                drawContour(x + index * 30, y, char, font); // 文字間隔調整
+            });
+        }
+
+        // 部屋の描画
+        function drawRoom() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const room = rooms.find(r => r.id === currentRoom);
+            if (room) {
+                const font = room.font;
+                room.characters.forEach((char, index) => {
+                    let x = 100;
+                    let y = 100 + index * 100;
+                    drawContour(x, y, char, font);
+                });
+
+                showDialogue(room.people[0]);
+            }
+        }
+
+        // ダイアログの表示
+        function showDialogue(personId) {
+            const dialogues = {
+                person1: "こんにちは、部屋1！",
+                person2: "こんにちは、部屋2！",
+                person3: "こんにちは、部屋3！",
+                person4: "こんにちは、部屋4！",
+                person5: "こんにちは、部屋5！"
+            };
+            const dialogue = dialogues[personId];
+            if (dialogue) {
+                const room = rooms.find(r => r.id === currentRoom);
+                if (room) {
+                    const font = room.font;
+                    drawDialogue(dialogue, 50, 500, font); // ダイアログ位置とフォント指定
+                }
+            }
+        }
+
+        // 入力の確認
+        function checkInput() {
+            const userInput = document.getElementById('user-input').value.split(',').map(item => item.trim());
+            const room = rooms.find(r => r.id === currentRoom);
+            if (room) {
+                const correctChars = room.characters;
+                const allCorrect = userInput.every(input => correctChars.includes(input));
+                if (allCorrect) {
+                    if (currentRoom < maxRooms) {
+                        currentRoom++;
+                        drawRoom();
+                    }
+                }
+            }
+        }
+
+        document.getElementById('submit-button').addEventListener('click', checkInput);
+
+        async function init() {
+            // JSONデータをフェッチ
+            const contoursResponse = await fetch('contours.json');
+            contours = await contoursResponse.json();
+            const roomsResponse = await fetch('rooms.json');
+            rooms = await roomsResponse.json();
+
+            drawRoom();
+        }
+
+        init();
+    </script>
+</body>
+</html>
